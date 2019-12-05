@@ -102,7 +102,8 @@ var date;
 const monthNames = ["January", "February", "March", "April", "May", "June",
   "July", "August", "September", "October", "November", "December"
 ];
-const STATES = ["36","09","34"];
+//const STATES = ["36","09","34"];
+const STATES = ["36"];
 
 function initMap() {
   // load the map of NYC
@@ -130,8 +131,11 @@ function initMap() {
   map.data.addListener('mouseout', mouseOutOfRegion);
   
   for (var i = 0; i < STATES.length; i++){
-      var url = 'https://api.census.gov/data/2017/acs/acs5?get=NAME&for=county:*&in=state:' + STATES[i] + '&key=YOUR-API-KEY';
-      loadData(url, i);
+      //var url = 'https://api.census.gov/data/2017/acs/acs5?get=NAME&for=county:*&in=state:' + STATES[i] + '&key=';
+      var url = `https://census-260518.appspot.com/state=${STATES[i]}`;
+      console.log(url);
+      //loadData(url, i);
+      loadCensusData(url);
   }
   
   // census tract polygons only need to be loaded once, do them now
@@ -148,7 +152,8 @@ function loadData(address, i){
     censusData.shift(); // the first row contains column names
 
     censusData.forEach(function(row) {
-        var address = `https://api.census.gov/data/2019/pdb/tract?get=Self_Response_Rate_ACS_13_17&for=tract:*&in=state:${STATES[i]}%20county:${row[2]}`
+        var address = `https://api.census.gov/data/2019/pdb/tract?get=Self_Response_Rate_ACS_13_17&for=tract:*&in=state:${STATES[i]}%20county:${row[2]}`;
+        //var address = `;
         loadCensusData(address);
 
     });
@@ -213,12 +218,11 @@ function styleFeature(feature) {
     censusData.shift(); // the first row contains column names
 
     censusData.forEach(function(row) {
-      var censusVariable = parseFloat(row[0]);
+      //var censusVariable = parseFloat(row[0]);
+      //console.log(row);
       
-      var stateId = row[1];
-      var county = row[2];
-      var tract = row[3];
-      var geoID = stateId + county + tract;
+      var censusVariable = parseFloat(row['rate']);
+      var geoId = row['tract'];
 
       // keep track of min and max values
       if (censusVariable < censusMin) {
@@ -237,6 +241,7 @@ function styleFeature(feature) {
       } catch (error) {
         //console.log(id);
       }
+      
       
     });
 
