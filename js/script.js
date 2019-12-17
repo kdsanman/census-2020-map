@@ -103,13 +103,13 @@ const monthNames = ["January", "February", "March", "April", "May", "June",
   "July", "August", "September", "October", "November", "December"
 ];
 //const STATES = ["36","09","34"];
-const STATES = ["36"];
+//const STATES = ["36"];
 
 function initMap() {
   // load the map of NYC
   map = new google.maps.Map(document.getElementById('map'), {
-    center: {lat: 43.091980, lng: -75.814983},
-    zoom: 7,
+    center: {lat: 40.7606809, lng: -73.9231722},
+    zoom: 10,
     styles: mapStyle,
     scrollwheel: false
   });
@@ -120,8 +120,8 @@ function initMap() {
   day = d.getDate();
   year = d.getFullYear();
 
-  document.getElementById('data-value').textContent = `${month} ${day}, ${year}`;
-  document.getElementById('data-box').style.display = 'block';
+  document.getElementById('data-value').textContent = "";
+  //document.getElementById('data-box').style.display = 'block';
 
   // Add styling to the map
   map.data.setStyle(mapStyle);
@@ -130,36 +130,10 @@ function initMap() {
   map.data.addListener('mouseover', mouseInToRegion);
   map.data.addListener('mouseout', mouseOutOfRegion);
   
-  for (var i = 0; i < STATES.length; i++){
-      //var url = 'https://api.census.gov/data/2017/acs/acs5?get=NAME&for=county:*&in=state:' + STATES[i] + '&key=';
-      var url = `https://census-260518.appspot.com/state=${STATES[i]}`;
-      console.log(url);
-      //loadData(url, i);
-      loadCensusData(url);
-  }
-  
   // census tract polygons only need to be loaded once, do them now
   loadMapShapes();
-
+  
 }; 
-
-function loadData(address, i){
-    // Get counties
-    var xhr = new XMLHttpRequest();
-    xhr.open('GET', address);
-    xhr.onload = function() {
-    var censusData = JSON.parse(xhr.response);
-    censusData.shift(); // the first row contains column names
-
-    censusData.forEach(function(row) {
-        var address = `https://api.census.gov/data/2019/pdb/tract?get=Self_Response_Rate_ACS_13_17&for=tract:*&in=state:${STATES[i]}%20county:${row[2]}`;
-        //var address = `;
-        loadCensusData(address);
-
-    });
-    };
-    xhr.send();
-};
   
 /**
 * Applies a gradient style based on the 'census_variable' column.
@@ -204,55 +178,137 @@ function styleFeature(feature) {
   };
 }
 
+function getBorough(county){
+  var borough = "000";
+  //console.log(type(county));
+  if (county == "061"){
+    // Manhattan / New York County
+    borough = "1";
+  } 
+  else if (county == "047"){
+    // Brooklyn / Kings County
+    borough = "3";
+  }
+  else if (county == "005"){
+    // Bronx County
+    borough = "2";
+  }
+  else if (county == "085"){
+    // Staten Island / Richmond County
+    borough = "5";
+  }
+  else if (county == "081"){
+    // Queens County 081
+    borough = "4";
+  }
+
+  return borough;
+}
+
 /**
  * Loads the census data from a simulated API call to the US Census API.
  *
  * @param {string} variable
  */
- function loadCensusData(address) {
+function loadCensusData(address) {
   // load the requested variable from the census API (using local copies)
   var xhr = new XMLHttpRequest();
   xhr.open('GET', address);
   xhr.onload = function() {
     var censusData = JSON.parse(xhr.response);
-    censusData.shift(); // the first row contains column names
 
     censusData.forEach(function(row) {
-      //var censusVariable = parseFloat(row[0]);
-      //console.log(row);
       
-      var censusVariable = parseFloat(row['rate']);
-      var geoId = row['tract'];
+      var censusVariable = Math.round(parseFloat(row['rate']));
+      var geoID = row['tract'];
 
-      // keep track of min and max values
-      if (censusVariable < censusMin) {
-        censusMin = censusVariable;
-      }
-      if (censusVariable > censusMax) {
-        censusMax = censusVariable;
-      }
+      var county = row['county'];
+      var tract = geoID.substring(5,11);
 
-      // update the existing row with the new data
-      //console.log(id);
+      //identify borough using county
+      var id = getBorough(county) + tract;
+      
       try {
         map.data
-        .getFeatureById(geoID)
+        .getFeatureById(id)
         .setProperty('census_variable', censusVariable);
       } catch (error) {
         //console.log(id);
-      }
-      
-      
+      } 
+
     });
+
+    
+    var original = 'https://storage.googleapis.com/www.census2020map.com/orig_36.json';
+    loadOriginalData(original);
+
+  };
+  xhr.send();
+
+}
+
+/**
+ * Loads the census data from a simulated API call to the US Census API.
+ *
+ * @param {string} variable
+ */
+ function loadOriginalData(address) {
+  // load the requested variable from the census API (using local copies)
+  var xhr = new XMLHttpRequest();
+  xhr.open('GET', address);
+  xhr.send();
+  xhr.onload = function() {
+    var censusData = JSON.parse(xhr.response);
+
+    censusData.forEach(function(row) {
+      
+      var censusVariable = Math.round(parseFloat(row['rate']));
+      var geoID = row['tract'];
+
+      var county = row['county'];
+      var tract = geoID.substring(5,11);
+
+      //identify borough using county
+      var id = getBorough(county) + tract;
+      
+      try {
+        var currentVariable = map.data
+          .getFeatureById(id)
+          .getProperty('census_variable');
+
+        console.log(geoID,currentVariable, censusVariable);
+        censusVariable = currentVariable - censusVariable;
+
+        map.data
+        .getFeatureById(id)
+        .setProperty('census_variable', censusVariable);
+
+        // keep track of min and max values
+        if (censusVariable < censusMin) {
+          censusMin = censusVariable;
+        }
+        if (censusVariable > censusMax) {
+          censusMax = censusVariable;
+          console.log('Updating censusMax to: ', censusMax, ' because ', geoID, ' has ', censusVariable, 'as rate');
+        }
+      } catch (error) {
+        //console.log(id);
+      } 
+
+      
+
+    });
+
 
     // update and display the legend
     document.getElementById('census-min').textContent =
         censusMin.toLocaleString();
     document.getElementById('census-max').textContent =
         censusMax.toLocaleString();
+
   };
-  xhr.send();
   
+
 }
 
   /**
@@ -270,9 +326,9 @@ function mouseInToRegion(e) {
 
  // update the label
  document.getElementById('data-label').textContent =
-      e.feature.getProperty('GEOID');
+      e.feature.getProperty('BoroName') + " Tract " + e.feature.getProperty('CT2010');
   document.getElementById('data-value').textContent =
-      e.feature.getProperty('census_variable');
+      e.feature.getProperty('census_variable') + '%';
   document.getElementById('data-box').style.display = 'block';
   document.getElementById('data-caret').style.display = 'block';
   document.getElementById('data-caret').style.paddingLeft = percent + '%';
@@ -294,9 +350,15 @@ function getRndInteger(min=-100, max=100) {
 
 /** Loads the state boundary polygons from a GeoJSON source. */
 function loadMapShapes() {
-  for (var i = 0; i < STATES.length; i++){
-    var url = 'https://raw.githubusercontent.com/arcee123/GIS_GEOJSON_CENSUS_TRACTS/master/'+ STATES[i]+'.geojson';
-    map.data.loadGeoJson(url, { idPropertyName: 'GEOID' });
-  }
-  
+  // load US state outline polygons from a GeoJson file
+  map.data.loadGeoJson('https://opendata.arcgis.com/datasets/5e1d9acbb2d4490795c48f1b03f7f730_0.geojson', 
+    { idPropertyName: 'BoroCT2010' });
+
+  // wait for the request to complete by listening for the first feature to be
+  // added
+  google.maps.event.addListenerOnce(map.data, 'addfeature', function() {
+    var prediction = 'https://storage.googleapis.com/www.census2020map.com/state_36.json';
+    loadCensusData(prediction);
+  });
+
 }
