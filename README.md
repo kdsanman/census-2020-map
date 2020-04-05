@@ -7,4 +7,4 @@ You will also need a Google Maps Javascript API key. You can get that following 
 
 Once you have those, you can replace `YOUR-API-KEY` with the corresponding API keys needed. 
 The Census Bureau API key goes in the `script.js` file on `line 133`. 
-The Google Maps Javascript API Key goes in the `tri_state_area.html` file on `line 83`.
+The Google Maps Javascript API Key goes in the `index.html` file on `line 93`.
